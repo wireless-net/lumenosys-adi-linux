@@ -975,7 +975,7 @@ static struct syscore_ops sec_pm_syscore_ops = {
 
 #endif
 
-void __cpuinit init_exception_vectors(void)
+void init_exception_vectors(void)
 {
 	/* cannot program in software:
 	 * evt0 - emulation (jtag)
