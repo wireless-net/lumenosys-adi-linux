@@ -40,7 +40,7 @@ int peripheral_request_list(const unsigned short per[], const char *label);
 void peripheral_free_list(const unsigned short per[]);
 #define pinmux_request(per, label) peripheral_request(per, label);
 #define pinmux_free(fer) peripheral_free(fer);
-#define pinmux_request_list(per, label) peripheral_request_list(per, lable);
+#define pinmux_request_list(per, label) peripheral_request_list(per, label);
 #define pinmux_free_list(per) peripheral_free_list(per);
 #endif
 
