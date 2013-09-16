@@ -2801,14 +2801,15 @@ int stmmac_suspend(struct net_device *ndev)
 	stmmac_clear_descriptors(priv);
 
 	/* Enable Power down mode by programming the PMT regs */
-	if (device_may_wakeup(priv->device))
+	if (device_may_wakeup(priv->device)) {
 		priv->hw->mac->pmt(priv->ioaddr, priv->wolopts);
-	else {
+		spin_unlock_irqrestore(&priv->lock, flags);
+	} else {
 		stmmac_set_mac(priv->ioaddr, false);
+		spin_unlock_irqrestore(&priv->lock, flags);
 		/* Disable clock in case of PWM is off */
 		clk_disable_unprepare(priv->stmmac_clk);
 	}
-	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
 }
 
@@ -2830,9 +2831,12 @@ int stmmac_resume(struct net_device *ndev)
 	 */
 	if (device_may_wakeup(priv->device))
 		priv->hw->mac->pmt(priv->ioaddr, 0);
-	else
+	else {
+		spin_unlock_irqrestore(&priv->lock, flags);
 		/* enable the clk prevously disabled */
 		clk_prepare_enable(priv->stmmac_clk);
+		spin_lock_irqsave(&priv->lock, flags);
+	}
 
 	netif_device_attach(ndev);
 
@@ -2840,8 +2844,9 @@ int stmmac_resume(struct net_device *ndev)
 	if (priv->phydev) {
 		priv->oldlink = 0;
 		priv->speed = 0;
+		spin_unlock_irqrestore(&priv->lock, flags);
 		phy_init_hw(priv->phydev);
-		phy_start(priv->phydev);
+		spin_lock_irqsave(&priv->lock, flags);
 	}
 
 	priv->dirty_tx = 0;
