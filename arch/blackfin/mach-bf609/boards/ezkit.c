@@ -1304,6 +1304,9 @@ static struct platform_device bfin_display_device = {
 static struct platform_device bfin_fb_device = {
 	.name = "bf609_nl8048",
 	.id = 2,
+	.dev = {
+		.platform_data = (void *)(MAX_CTRL_CS + GPIO_PC15),
+	},
 };
 #endif
 

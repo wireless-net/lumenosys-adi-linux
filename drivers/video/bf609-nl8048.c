@@ -44,44 +44,8 @@ struct bfin_fb_par {
 	int dma_ch;
 	int irq_err;
 	struct bfin_eppi3_regs *reg;
-	const unsigned short *per_fs;
-	const unsigned short *per_data;
 	int user;
-};
-
-static const unsigned short eppi0_per_fs[] = {
-	P_PPI0_CLK, P_PPI0_FS1, P_PPI0_FS2, 0,
-};
-static const unsigned short eppi0_per_data[] = {
-	P_PPI0_D0, P_PPI0_D1, P_PPI0_D2, P_PPI0_D3,
-	P_PPI0_D4, P_PPI0_D5, P_PPI0_D6, P_PPI0_D7,
-	P_PPI0_D8, P_PPI0_D9, P_PPI0_D10, P_PPI0_D11,
-	P_PPI0_D12, P_PPI0_D13, P_PPI0_D14, P_PPI0_D15,
-	P_PPI0_D16, P_PPI0_D17, P_PPI0_D18, P_PPI0_D19,
-	P_PPI0_D20, P_PPI0_D21, P_PPI0_D22, P_PPI0_D23,
-	0,
-};
-
-static const unsigned short eppi1_per_fs[] = {
-	P_PPI1_CLK, P_PPI1_FS1, P_PPI1_FS2, 0,
-};
-static const unsigned short eppi1_per_data[] = {
-	P_PPI1_D0, P_PPI1_D1, P_PPI1_D2, P_PPI1_D3,
-	P_PPI1_D4, P_PPI1_D5, P_PPI1_D6, P_PPI1_D7,
-	P_PPI1_D8, P_PPI1_D9, P_PPI1_D10, P_PPI1_D11,
-	P_PPI1_D12, P_PPI1_D13, P_PPI1_D14, P_PPI1_D15,
-	P_PPI1_D16, P_PPI1_D17, 0,
-};
-
-static const unsigned short eppi2_per_fs[] = {
-	P_PPI2_CLK, P_PPI2_FS1, P_PPI2_FS2, 0,
-};
-static const unsigned short eppi2_per_data[] = {
-	P_PPI2_D0, P_PPI2_D1, P_PPI2_D2, P_PPI2_D3,
-	P_PPI2_D4, P_PPI2_D5, P_PPI2_D6, P_PPI2_D7,
-	P_PPI2_D8, P_PPI2_D9, P_PPI2_D10, P_PPI2_D11,
-	P_PPI2_D12, P_PPI2_D13, P_PPI2_D14, P_PPI2_D15,
-	P_PPI2_D16, P_PPI2_D17, 0,
+	int cs;
 };
 
 static struct fb_fix_screeninfo bfin_fb_fix = {
@@ -274,7 +238,7 @@ static int lcd_startup(struct bfin_fb_par *par)
 		.modalias               = "dummy",
 		.max_speed_hz           = 5000000,
 		.bus_num                = 0,
-		.chip_select            = 4,
+		.chip_select            = par->cs,
 	};
 
 	master = spi_busnum_to_master(0);
@@ -385,31 +349,13 @@ static int bfin_fb_open(struct fb_info *info, int user)
 			dev_err(info->dev, "Can't allocate IRQ for EPPI\n");
 			goto err;
 		}
-#ifndef CONFIG_PINCTRL
-		ret = peripheral_request_list(par->per_fs, KBUILD_MODNAME);
-		if (ret) {
-			dev_err(info->dev, "Can't request FS pins\n");
-			goto err1;
-		}
-
-		ret = peripheral_request_list(par->per_data, KBUILD_MODNAME);
-		if (ret) {
-			dev_err(info->dev, "Can't request DATA pins\n");
-			goto err2;
-		}
-#endif
 		start_ppi(info);
 	}
 	par->user++;
 	return 0;
-err2:
-	peripheral_free_list(par->per_fs);
-err1:
-	free_irq(par->irq_err, info);
 err:
 	free_dma(par->dma_ch);
 	return ret;
-
 }
 
 static int bfin_fb_release(struct fb_info *info, int user)
@@ -419,10 +365,6 @@ static int bfin_fb_release(struct fb_info *info, int user)
 	par->user--;
 	if (!par->user) {
 		stop_ppi(info);
-#ifndef CONFIG_PINCTRL
-		peripheral_free_list(par->per_data);
-		peripheral_free_list(par->per_fs);
-#endif
 		free_irq(par->irq_err, info);
 		free_dma(par->dma_ch);
 	}
@@ -498,22 +440,16 @@ static int bfin_nl8048_probe(struct platform_device *pdev)
 		par->dma_ch = CH_EPPI0_CH0;
 		par->irq_err = IRQ_EPPI0_STAT;
 		par->reg = (struct bfin_eppi3_regs *)EPPI0_STAT;
-		par->per_fs = eppi0_per_fs;
-		par->per_data = eppi0_per_data;
 		break;
 	case 1:
 		par->dma_ch = CH_EPPI1_CH0;
 		par->irq_err = IRQ_EPPI1_STAT;
 		par->reg = (struct bfin_eppi3_regs *)EPPI1_STAT;
-		par->per_fs = eppi1_per_fs;
-		par->per_data = eppi1_per_data;
 		break;
 	case 2:
 		par->dma_ch = CH_EPPI2_CH0;
 		par->irq_err = IRQ_EPPI2_STAT;
 		par->reg = (struct bfin_eppi3_regs *)EPPI2_STAT;
-		par->per_fs = eppi2_per_fs;
-		par->per_data = eppi2_per_data;
 		break;
 	default:
 		dev_err(&pdev->dev, "PPI instance [%d] is out of range\n",
@@ -522,6 +458,7 @@ static int bfin_nl8048_probe(struct platform_device *pdev)
 		goto err_mem;
 	}
 	par->user = 0;
+	par->cs = (int)pdev->dev.platform_data;
 
 	soft_switch_config();
 	ret = lcd_startup(par);
