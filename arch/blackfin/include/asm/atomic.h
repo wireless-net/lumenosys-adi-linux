@@ -24,24 +24,8 @@ asmlinkage int __raw_atomic_test_asm(const volatile int *ptr, int value);
 
 #define atomic_read(v) __raw_uncached_fetch_asm(&(v)->counter)
 
-static inline int __atomic_add_return(int i, atomic_t *v)
-{
-	int ret;
-	ret = __raw_atomic_update_asm(&(v)->counter, i);
-	smp_mb();
-	return ret;
-}
-
-static inline int __atomic_sub_return(int i, atomic_t *v)
-{
-	int ret;
-	ret = __raw_atomic_update_asm(&(v)->counter, -(i));
-	smp_mb();
-	return ret;
-}
-
-#define atomic_add_return(i, v) __atomic_add_return(i, v)
-#define atomic_sub_return(i, v) __atomic_sub_return(i, v)
+#define atomic_add_return(i, v) __raw_atomic_update_asm(&(v)->counter, i)
+#define atomic_sub_return(i, v) __raw_atomic_update_asm(&(v)->counter, -(i))
 
 #define atomic_clear_mask(m, v) __raw_atomic_clear_asm(&(v)->counter, m)
 #define atomic_set_mask(m, v)   __raw_atomic_set_asm(&(v)->counter, m)

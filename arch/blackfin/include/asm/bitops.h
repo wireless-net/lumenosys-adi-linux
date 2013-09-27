@@ -86,25 +86,19 @@ static inline int test_bit(int nr, const volatile unsigned long *addr)
 static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
 {
 	volatile unsigned long *a = addr + (nr >> 5);
-	int ret = __raw_bit_test_set_asm(a, nr & 0x1f);
-	smp_mb();
-	return ret;
+	return __raw_bit_test_set_asm(a, nr & 0x1f);
 }
 
 static inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
 {
 	volatile unsigned long *a = addr + (nr >> 5);
-	int ret = __raw_bit_test_clear_asm(a, nr & 0x1f);
-	smp_mb();
-	return ret;
+	return __raw_bit_test_clear_asm(a, nr & 0x1f);
 }
 
 static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 {
 	volatile unsigned long *a = addr + (nr >> 5);
-	int ret = __raw_bit_test_toggle_asm(a, nr & 0x1f);
-	smp_mb();
-	return ret;
+	return __raw_bit_test_toggle_asm(a, nr & 0x1f);
 }
 
 /*
