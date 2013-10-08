@@ -320,12 +320,14 @@ static unsigned int adi_gpio_irq_startup(struct irq_data *d)
 {
 	unsigned long flags;
 	struct gpio_port *port = irq_data_get_irq_chip_data(d);
-	struct gpio_pint_regs *regs = port->pint->regs;
+	struct gpio_pint_regs *regs;
 
 	if (!port) {
 		pr_err("GPIO IRQ %d :Not exist\n", d->irq);
 		return -ENODEV;
 	}
+
+	regs = port->pint->regs;
 
 	spin_lock_irqsave(&port->lock, flags);
 	spin_lock(&port->pint->lock);
@@ -361,7 +363,7 @@ static int adi_gpio_irq_type(struct irq_data *d, unsigned int type)
 {
 	unsigned long flags;
 	struct gpio_port *port = irq_data_get_irq_chip_data(d);
-	struct gpio_pint_regs *pint_regs = port->pint->regs;
+	struct gpio_pint_regs *pint_regs;
 	unsigned pintmask;
 	unsigned int irq = d->irq;
 	int ret = 0;
@@ -371,6 +373,8 @@ static int adi_gpio_irq_type(struct irq_data *d, unsigned int type)
 		pr_err("GPIO IRQ %d :Not exist\n", d->irq);
 		return -ENODEV;
 	}
+
+	pint_regs = port->pint->regs;
 
 	pintmask = hwirq_to_pintbit(port, d->hwirq);
 
