@@ -269,7 +269,7 @@ static irqreturn_t bfin_disp_isr(int irq, void *dev_id)
 		vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 		disp->cur_frm = list_entry(disp->dma_queue.next,
 				struct bfin_disp_buffer, list);
-		list_del(&disp->cur_frm->list);
+		list_del_init(&disp->cur_frm->list);
 	}
 
 	clear_dma_irqstat(ppi->info->dma_ch);
@@ -375,7 +375,7 @@ static int bfin_disp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	disp->cur_frm = list_entry(disp->dma_queue.next,
 					struct bfin_disp_buffer, list);
 	/* remove buffer from the dma queue */
-	list_del(&disp->cur_frm->list);
+	list_del_init(&disp->cur_frm->list);
 	spin_unlock_irqrestore(&disp->lock, flags);
 
 	addr = vb2_dma_contig_plane_dma_addr(&disp->cur_frm->vb, 0);
@@ -409,7 +409,7 @@ static int bfin_disp_stop_streaming(struct vb2_queue *vq)
 	while (!list_empty(&disp->dma_queue)) {
 		disp->cur_frm = list_entry(disp->dma_queue.next,
 						struct bfin_disp_buffer, list);
-		list_del(&disp->cur_frm->list);
+		list_del_init(&disp->cur_frm->list);
 		vb2_buffer_done(&disp->cur_frm->vb, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&disp->lock, flags);
