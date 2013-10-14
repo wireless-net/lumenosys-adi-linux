@@ -50,7 +50,7 @@ int platform_res_manage_request_irq(uint16_t subid, unsigned int cpu)
 		for (i = 0; i < GPIO_BANKSIZE; i++) {
 			ret = request_irq(bank_base + i,
 				coreb_resource_manage_dummy,
-					0, "coreb dummy", NULL);
+					IRQ_TYPE_EDGE_BOTH, "coreb dummy", NULL);
 			if (ret) {
 				n = i;
 				for (i = 0; i < n; i++)
@@ -61,7 +61,7 @@ int platform_res_manage_request_irq(uint16_t subid, unsigned int cpu)
 		icc_irq_set_affinity(IRQ_PINT0 + bank, cpumask_of(cpu));
 	} else {
 		ret = request_irq(subid, coreb_resource_manage_dummy,
-				0, "coreb dummy", NULL);
+				IRQ_TYPE_EDGE_BOTH, "coreb dummy", NULL);
 		if (ret) {
 			printk(KERN_DEBUG "request irq %d failed\n", subid);
 			return ret;
