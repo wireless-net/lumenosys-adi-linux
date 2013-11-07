@@ -32,7 +32,6 @@
 #include <linux/time.h>
 #include <linux/types.h>
 
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -878,41 +877,6 @@ static int bcap_s_parm(struct file *file, void *fh,
 	return v4l2_subdev_call(bcap_dev->sd, video, s_parm, a);
 }
 
-static int bcap_g_chip_ident(struct file *file, void *priv,
-		struct v4l2_dbg_chip_ident *chip)
-{
-	struct bcap_device *bcap_dev = video_drvdata(file);
-
-	chip->ident = V4L2_IDENT_NONE;
-	chip->revision = 0;
-	if (chip->match.type != V4L2_CHIP_MATCH_I2C_DRIVER &&
-			chip->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
-		return -EINVAL;
-
-	return v4l2_subdev_call(bcap_dev->sd, core,
-			g_chip_ident, chip);
-}
-
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-static int bcap_dbg_g_register(struct file *file, void *priv,
-		struct v4l2_dbg_register *reg)
-{
-	struct bcap_device *bcap_dev = video_drvdata(file);
-
-	return v4l2_subdev_call(bcap_dev->sd, core,
-			g_register, reg);
-}
-
-static int bcap_dbg_s_register(struct file *file, void *priv,
-		const struct v4l2_dbg_register *reg)
-{
-	struct bcap_device *bcap_dev = video_drvdata(file);
-
-	return v4l2_subdev_call(bcap_dev->sd, core,
-			s_register, reg);
-}
-#endif
-
 static int bcap_log_status(struct file *file, void *priv)
 {
 	struct bcap_device *bcap_dev = video_drvdata(file);
@@ -945,11 +909,6 @@ static const struct v4l2_ioctl_ops bcap_ioctl_ops = {
 	.vidioc_streamoff        = bcap_streamoff,
 	.vidioc_g_parm           = bcap_g_parm,
 	.vidioc_s_parm           = bcap_s_parm,
-	.vidioc_g_chip_ident     = bcap_g_chip_ident,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register       = bcap_dbg_g_register,
-	.vidioc_s_register       = bcap_dbg_s_register,
-#endif
 	.vidioc_log_status       = bcap_log_status,
 };
 
@@ -976,7 +935,7 @@ static int bcap_probe(struct platform_device *pdev)
 	int ret;
 
 	config = pdev->dev.platform_data;
-	if (!config) {
+	if (!config || !config->num_inputs) {
 		v4l2_err(pdev->dev.driver, "Unable to get board config\n");
 		return -ENODEV;
 	}
@@ -1047,7 +1006,9 @@ static int bcap_probe(struct platform_device *pdev)
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
-	vb2_queue_init(q);
+	ret = vb2_queue_init(q);
+	if (ret)
+		goto err_free_handler;
 
 	mutex_init(&bcap_dev->mutex);
 	init_completion(&bcap_dev->comp);
@@ -1083,11 +1044,6 @@ static int bcap_probe(struct platform_device *pdev)
 						 NULL);
 	if (bcap_dev->sd) {
 		int i;
-		if (!config->num_inputs) {
-			v4l2_err(&bcap_dev->v4l2_dev,
-					"Unable to work without input\n");
-			goto err_unreg_vdev;
-		}
 
 		/* update tvnorms from the sub devices */
 		for (i = 0; i < config->num_inputs; i++)
@@ -1095,6 +1051,7 @@ static int bcap_probe(struct platform_device *pdev)
 	} else {
 		v4l2_err(&bcap_dev->v4l2_dev,
 				"Unable to register sub device\n");
+		ret = -ENODEV;
 		goto err_unreg_vdev;
 	}
 

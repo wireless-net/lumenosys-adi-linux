@@ -449,6 +449,8 @@ extern int __must_check hex2bin(u8 *dst, const char *src, size_t count);
 
 int mac_pton(const char *s, u8 *mac);
 
+int mac_pton(const char *s, u8 *mac);
+
 /*
  * General tracing related utility functions - trace_printk(),
  * tracing_on/tracing_off and tracing_start()/tracing_stop
@@ -629,7 +631,7 @@ extern void ftrace_dump(enum ftrace_dump_mode oops_dump_mode);
 static inline void tracing_start(void) { }
 static inline void tracing_stop(void) { }
 static inline void ftrace_off_permanent(void) { }
-static inline void trace_dump_stack(void) { }
+static inline void trace_dump_stack(int skip) { }
 
 static inline void tracing_on(void) { }
 static inline void tracing_off(void) { }
