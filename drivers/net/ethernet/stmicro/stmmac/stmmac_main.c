@@ -1226,8 +1226,7 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 {
 	if (priv->plat->force_thresh_dma_mode)
 		priv->hw->dma->dma_mode(priv->ioaddr, tc, tc);
-	else if (likely(priv->plat->force_sf_dma_mode ||
-		   ((priv->plat->tx_coe) && (!priv->no_csum_insertion)))) {
+	else if (priv->plat->force_sf_dma_mode || priv->plat->tx_coe) {
 		/*
 		 * In case of GMAC, SF mode can be enabled
 		 * to perform the TX COE in HW. This depends on:

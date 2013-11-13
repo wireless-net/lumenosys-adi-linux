@@ -41,10 +41,6 @@
 # undef CONFIG_EARLY_PRINTK
 #endif
 
-#ifdef CONFIG_SERIAL_BFIN_MODULE
-# undef CONFIG_EARLY_PRINTK
-#endif
-
 /* UART name and device definitions */
 #define BFIN_SERIAL_DEV_NAME	"ttyBF"
 #define BFIN_SERIAL_MAJOR	204
@@ -1214,7 +1210,7 @@ bfin_earlyprintk_console_write(struct console *co, const char *s, unsigned int c
  * don't let the common infrastructure play with things. (see calls to setup
  * & earlysetup in ./kernel/printk.c:register_console()
  */
-static struct __initdata console bfin_early_serial_console = {
+static struct console bfin_early_serial_console __initdata = {
 	.name = "early_BFuart",
 	.write = bfin_earlyprintk_console_write,
 	.device = uart_console_device,
@@ -1278,7 +1274,8 @@ static int bfin_serial_probe(struct platform_device *pdev)
 			 */
 #endif
 		ret = peripheral_request_list(
-			(unsigned short *)pdev->dev.platform_data, DRIVER_NAME);
+			(unsigned short *)dev_get_platdata(&pdev->dev),
+			DRIVER_NAME);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"fail to request bfin serial peripherals\n");
@@ -1389,7 +1386,7 @@ out_error_unmap:
 		iounmap(uart->port.membase);
 out_error_free_peripherals:
 		peripheral_free_list(
-			(unsigned short *)pdev->dev.platform_data);
+			(unsigned short *)dev_get_platdata(&pdev->dev));
 out_error_free_mem:
 		kfree(uart);
 		bfin_serial_ports[pdev->id] = NULL;
@@ -1408,7 +1405,7 @@ static int bfin_serial_remove(struct platform_device *pdev)
 		uart_remove_one_port(&bfin_serial_reg, &uart->port);
 		iounmap(uart->port.membase);
 		peripheral_free_list(
-			(unsigned short *)pdev->dev.platform_data);
+			(unsigned short *)dev_get_platdata(&pdev->dev));
 		kfree(uart);
 		bfin_serial_ports[pdev->id] = NULL;
 	}
@@ -1448,7 +1445,7 @@ static int bfin_earlyprintk_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_GPIO_ADI
 	ret = peripheral_request_list(
-		(unsigned short *)pdev->dev.platform_data, DRIVER_NAME);
+		(unsigned short *)dev_get_platdata(&pdev->dev), DRIVER_NAME);
 	if (ret) {
 		dev_err(&pdev->dev,
 				"fail to request bfin serial peripherals\n");
@@ -1543,7 +1540,7 @@ static struct platform_driver bfin_earlyprintk_driver = {
 	},
 };
 
-static __initdata struct early_platform_driver early_bfin_earlyprintk_driver = {
+static struct early_platform_driver early_bfin_earlyprintk_driver __initdata = {
 	.class_str = CLASS_BFIN_EARLYPRINTK,
 	.pdrv = &bfin_earlyprintk_driver,
 	.requested_id = EARLY_PLATFORM_ID_UNSET,

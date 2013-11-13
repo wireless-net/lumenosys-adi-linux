@@ -80,7 +80,7 @@ int pinmux_validate_map(struct pinctrl_map const *map, int i)
  * @gpio_range: the range matching the GPIO pin if this is a request for a
  *	single GPIO pin
  */
-int pin_request(struct pinctrl_dev *pctldev,
+static int pin_request(struct pinctrl_dev *pctldev,
 		       int pin, const char *owner,
 		       struct pinctrl_gpio_range *gpio_range)
 {
@@ -179,7 +179,7 @@ out:
  * for callers that dynamically allocate an owner name so it can be freed
  * once the pin is free. This is done for GPIO request functions.
  */
-const char *pin_free(struct pinctrl_dev *pctldev, int pin,
+static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
 			    struct pinctrl_gpio_range *gpio_range)
 {
 	const struct pinmux_ops *ops = pctldev->desc->pmxops;
@@ -400,10 +400,14 @@ int pinmux_enable_setting(struct pinctrl_setting const *setting)
 	ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
 				      &pins, &num_pins);
 	if (ret) {
+		const char *gname;
+
 		/* errors only affect debug data, so just warn */
+		gname = pctlops->get_group_name(pctldev,
+						setting->data.mux.group);
 		dev_warn(pctldev->dev,
-			 "could not get pins for group selector %d\n",
-			 setting->data.mux.group);
+			 "could not get pins for group %s\n",
+			 gname);
 		num_pins = 0;
 	}
 
@@ -411,9 +415,18 @@ int pinmux_enable_setting(struct pinctrl_setting const *setting)
 	for (i = 0; i < num_pins; i++) {
 		ret = pin_request(pctldev, pins[i], setting->dev_name, NULL);
 		if (ret) {
+			const char *gname;
+			const char *pname;
+
+			desc = pin_desc_get(pctldev, pins[i]);
+			pname = desc ? desc->name : "non-existing";
+			gname = pctlops->get_group_name(pctldev,
+						setting->data.mux.group);
 			dev_err(pctldev->dev,
-				"could not request pin %d on device %s\n",
-				pins[i], pinctrl_dev_get_name(pctldev));
+				"could not request pin %d (%s) from group %s "
+				" on device %s\n",
+				pins[i], pname, gname,
+				pinctrl_dev_get_name(pctldev));
 			goto err_pin_request;
 		}
 	}
@@ -466,10 +479,14 @@ void pinmux_disable_setting(struct pinctrl_setting const *setting)
 	ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
 				      &pins, &num_pins);
 	if (ret) {
+		const char *gname;
+
 		/* errors only affect debug data, so just warn */
+		gname = pctlops->get_group_name(pctldev,
+						setting->data.mux.group);
 		dev_warn(pctldev->dev,
-			 "could not get pins for group selector %d\n",
-			 setting->data.mux.group);
+			 "could not get pins for group %s\n",
+			 gname);
 		num_pins = 0;
 	}
 
@@ -486,6 +503,18 @@ void pinmux_disable_setting(struct pinctrl_setting const *setting)
 			desc->mux_setting = NULL;
 			/* And release the pin */
 			pin_free(pctldev, pins[i], NULL);
+		} else {
+			const char *gname;
+			const char *pname;
+
+			pname = desc ? desc->name : "non-existing";
+			gname = pctlops->get_group_name(pctldev,
+						setting->data.mux.group);
+			dev_warn(pctldev->dev,
+				 "not freeing pin %d (%s) as part of "
+				 "deactivating group %s - it is already "
+				 "used for some other setting",
+				 pins[i], pname, gname);
 		}
 	}
 
