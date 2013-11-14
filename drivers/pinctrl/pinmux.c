@@ -80,7 +80,7 @@ int pinmux_validate_map(struct pinctrl_map const *map, int i)
  * @gpio_range: the range matching the GPIO pin if this is a request for a
  *	single GPIO pin
  */
-static int pin_request(struct pinctrl_dev *pctldev,
+int pin_request(struct pinctrl_dev *pctldev,
 		       int pin, const char *owner,
 		       struct pinctrl_gpio_range *gpio_range)
 {
@@ -179,7 +179,7 @@ out:
  * for callers that dynamically allocate an owner name so it can be freed
  * once the pin is free. This is done for GPIO request functions.
  */
-static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
+const char *pin_free(struct pinctrl_dev *pctldev, int pin,
 			    struct pinctrl_gpio_range *gpio_range)
 {
 	const struct pinmux_ops *ops = pctldev->desc->pmxops;

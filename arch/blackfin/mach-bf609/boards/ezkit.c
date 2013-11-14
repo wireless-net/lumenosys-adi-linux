@@ -697,14 +697,9 @@ static struct mtd_partition ezkit_partitions[] = {
 int bf609_nor_flash_init(struct platform_device *pdev)
 {
 #define CONFIG_SMC_GCTL_VAL     0x00000010
-	const unsigned short pins[] = {
-		P_A3, P_A4, P_A5, P_A6, P_A7, P_A8, P_A9, P_A10, P_A11, P_A12,
-		P_A13, P_A14, P_A15, P_A16, P_A17, P_A18, P_A19, P_A20, P_A21,
-		P_A22, P_A23, P_A24, P_A25, P_NORCK, 0,
-	};
 
-	peripheral_request_list(pins, "smc0");
-
+	if (!devm_pinctrl_get_select_default(&pdev->dev))
+		return -EBUSY;
 	bfin_write32(SMC_GCTL, CONFIG_SMC_GCTL_VAL);
 	bfin_write32(SMC_B0CTL, 0x01002011);
 	bfin_write32(SMC_B0TIM, 0x08170977);
@@ -712,16 +707,9 @@ int bf609_nor_flash_init(struct platform_device *pdev)
 	return 0;
 }
 
-void bf609_nor_flash_exit(struct platform_device *dev)
+void bf609_nor_flash_exit(struct platform_device *pdev)
 {
-	const unsigned short pins[] = {
-		P_A3, P_A4, P_A5, P_A6, P_A7, P_A8, P_A9, P_A10, P_A11, P_A12,
-		P_A13, P_A14, P_A15, P_A16, P_A17, P_A18, P_A19, P_A20, P_A21,
-		P_A22, P_A23, P_A24, P_A25, P_NORCK, 0,
-	};
-
-	peripheral_free_list(pins);
-
+	devm_pinctrl_put(pdev->dev.pins->p);
 	bfin_write32(SMC_GCTL, 0);
 }
 
