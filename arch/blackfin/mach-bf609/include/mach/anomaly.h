@@ -62,6 +62,30 @@
 #define ANOMALY_16000027 (1)
 /* Interrupted Core Reads of MMRs May Cause Data Loss */
 #define ANOMALY_16000030 (1)
+/* Incorrect Default USB_PLL_OSC.PLLM Value */
+#define ANOMALY_16000031 (1)
+/* Core Reads of System MMRs May Cause the Core to Hang */
+#define ANOMALY_16000032 (1)
+/* PPI Data Underflow on First Word Not Reported in Certain Modes */
+#define ANOMALY_16000033 (1)
+/* CNV1 Red Pixel Substitution feature not functional in the PVP */
+#define ANOMALY_16000034 (1)
+/* IPF0 Output Port Color Separation feature not functional */
+#define ANOMALY_16000035 (1)
+/* Spurious USB Wake From Hibernate May Occur When USB_VBUS is Low */
+#define ANOMALY_16000036 (1)
+/* Core RAISE 2 Instruction Not Latched When Executed at Priority Level 0, 1, or 2 */
+#define ANOMALY_16000037 (1)
+/* Spurious Unhandled NMI or L1 Memory Parity Error Interrupt May Occur Upon Entering the NMI ISR */
+#define ANOMALY_16000038 (1)
+/* CGU_STAT.PLOCKERR Bit May be Unreliable */
+#define ANOMALY_16000039 (1)
+/* JTAG Emulator Reads of SDU_IDCODE Alter Register Contents */
+#define ANOMALY_16000040 (1)
+/* IFLUSH Instruction Causes Parity Error When Parity Is Enabled */
+#define ANOMALY_16000041 (1)
+/* Instruction Cache Failure When Parity Is Enabled */
+#define ANOMALY_16000042 (1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000158 (0)
