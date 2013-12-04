@@ -117,6 +117,25 @@ ENTRY(__start)
 	sti r0;
 #endif
 
+#ifdef CONFIG_L1_PARITY_CHECK
+	/* Enable L1 data SRAM Parity check */
+	p1.l = lo(DMEM_CONTROL);
+	p1.h = hi(DMEM_CONTROL);
+	r0 = [p1];
+	BITSET(R0,RDCHK);
+	CSYNC;
+	[p1] = r0;
+	SSYNC;
+	/* Enable L1 inst SRAM Parity check */
+	p1.l = lo(IMEM_CONTROL);
+	p1.h = hi(IMEM_CONTROL);
+	r0 = [p1];
+	BITSET(R0,RDCHK);
+	CSYNC;
+	[p1] = r0;
+	SSYNC;
+#endif
+
 	r0 = r6;
 	/* Zero out all of the fun bss regions */
 #if L1_DATA_A_LENGTH > 0
