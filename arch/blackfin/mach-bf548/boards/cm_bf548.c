@@ -1006,7 +1006,7 @@ static struct platform_device bf54x_spi_master1 = {
 };
 #endif  /* spi master and devices */
 
-#if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+#if defined(CONFIG_I2C_ADI_TWI) || defined(CONFIG_I2C_ADI_TWI_MODULE)
 static const u16 bfin_twi0_pins[] = {P_TWI0_SCL, P_TWI0_SDA, 0};
 
 static struct resource bfin_twi0_resource[] = {
@@ -1023,7 +1023,7 @@ static struct resource bfin_twi0_resource[] = {
 };
 
 static struct platform_device i2c_bfin_twi0_device = {
-	.name = "i2c-bfin-twi",
+	.name = "i2c-adi-twi",
 	.id = 0,
 	.num_resources = ARRAY_SIZE(bfin_twi0_resource),
 	.resource = bfin_twi0_resource,
@@ -1049,7 +1049,7 @@ static struct resource bfin_twi1_resource[] = {
 };
 
 static struct platform_device i2c_bfin_twi1_device = {
-	.name = "i2c-bfin-twi",
+	.name = "i2c-adi-twi",
 	.id = 1,
 	.num_resources = ARRAY_SIZE(bfin_twi1_resource),
 	.resource = bfin_twi1_resource,
@@ -1194,7 +1194,7 @@ static struct platform_device *cm_bf548_devices[] __initdata = {
 	&bf54x_kpad_device,
 #endif
 
-#if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+#if defined(CONFIG_I2C_ADI_TWI) || defined(CONFIG_I2C_ADI_TWI_MODULE)
 	&i2c_bfin_twi0_device,
 #if !defined(CONFIG_BF542)
 	&i2c_bfin_twi1_device,

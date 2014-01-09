@@ -1687,7 +1687,7 @@ static struct platform_device bfin_capture_device = {
 };
 #endif
 
-#if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+#if defined(CONFIG_I2C_ADI_TWI) || defined(CONFIG_I2C_ADI_TWI_MODULE)
 static const u16 bfin_twi0_pins[] = {P_TWI0_SCL, P_TWI0_SDA, 0};
 
 static struct resource bfin_twi0_resource[] = {
@@ -1704,7 +1704,7 @@ static struct resource bfin_twi0_resource[] = {
 };
 
 static struct platform_device i2c_bfin_twi0_device = {
-	.name = "i2c-bfin-twi",
+	.name = "i2c-adi-twi",
 	.id = 0,
 	.num_resources = ARRAY_SIZE(bfin_twi0_resource),
 	.resource = bfin_twi0_resource,
@@ -1730,7 +1730,7 @@ static struct resource bfin_twi1_resource[] = {
 };
 
 static struct platform_device i2c_bfin_twi1_device = {
-	.name = "i2c-bfin-twi",
+	.name = "i2c-adi-twi",
 	.id = 1,
 	.num_resources = ARRAY_SIZE(bfin_twi1_resource),
 	.resource = bfin_twi1_resource,
@@ -2061,7 +2061,7 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&bfin_rotary_device,
 #endif
 
-#if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+#if defined(CONFIG_I2C_ADI_TWI) || defined(CONFIG_I2C_ADI_TWI_MODULE)
 	&i2c_bfin_twi0_device,
 #if !defined(CONFIG_BF542)
 	&i2c_bfin_twi1_device,
@@ -2117,9 +2117,9 @@ static struct pinctrl_map __initdata bfin_pinmux_map[] = {
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin-sdh.0",  "pinctrl-adi2.0", NULL, "rsi0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin-spi.0",  "pinctrl-adi2.0", NULL, "spi0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin-spi.1",  "pinctrl-adi2.0", NULL, "spi1"),
-	PIN_MAP_MUX_GROUP_DEFAULT("i2c-bfin-twi.0",  "pinctrl-adi2.0", NULL, "twi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("i2c-adi-twi.0",  "pinctrl-adi2.0", NULL, "twi0"),
 #if !defined(CONFIG_BF542)	/* The BF542 only has 1 TWI */
-	PIN_MAP_MUX_GROUP_DEFAULT("i2c-bfin-twi.1",  "pinctrl-adi2.0", NULL, "twi1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("i2c-adi-twi.1",  "pinctrl-adi2.0", NULL, "twi1"),
 #endif
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin-rotary",  "pinctrl-adi2.0", NULL, "rotary"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin_can.0",  "pinctrl-adi2.0", NULL, "can0"),

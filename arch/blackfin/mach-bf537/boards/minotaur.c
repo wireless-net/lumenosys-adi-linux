@@ -385,7 +385,7 @@ static struct platform_device bfin_sir1_device = {
 #endif
 #endif
 
-#if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+#if defined(CONFIG_I2C_ADI_TWI) || defined(CONFIG_I2C_ADI_TWI_MODULE)
 static const u16 bfin_twi0_pins[] = {P_TWI0_SCL, P_TWI0_SDA, 0};
 
 static struct resource bfin_twi0_resource[] = {
@@ -402,7 +402,7 @@ static struct resource bfin_twi0_resource[] = {
 };
 
 static struct platform_device i2c_bfin_twi_device = {
-	.name = "i2c-bfin-twi",
+	.name = "i2c-adi-twi",
 	.id = 0,
 	.num_resources = ARRAY_SIZE(bfin_twi0_resource),
 	.resource = bfin_twi0_resource,
@@ -523,7 +523,7 @@ static struct platform_device *minotaur_devices[] __initdata = {
 #endif
 #endif
 
-#if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+#if defined(CONFIG_I2C_ADI_TWI) || defined(CONFIG_I2C_ADI_TWI_MODULE)
 	&i2c_bfin_twi_device,
 #endif
 
