@@ -1,9 +1,7 @@
 /*
- * Blackfin On-Chip Two Wire Interface Driver
+ * ADI on-chip Two Wire Interface Driver
  *
  * Copyright 2005-2007 Analog Devices Inc.
- *
- * Enter bugs at http://blackfin.uclinux.org/
  *
  * Licensed under the GPL-2 or later.
  */
@@ -21,11 +19,11 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/i2c/i2c-adi.h>
 
-#include <asm/blackfin.h>
 #include <asm/portmux.h>
 #include <asm/irq.h>
-#include <asm/bfin_twi.h>
+#include <asm/twi.h>
 
 /* SMBus mode*/
 #define TWI_I2C_MODE_STANDARD		1
@@ -33,7 +31,7 @@
 #define TWI_I2C_MODE_COMBINED		3
 #define TWI_I2C_MODE_REPEAT		4
 
-static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface,
+static void adi_twi_handle_interrupt(struct adi_twi_iface *iface,
 					unsigned short twi_int_status)
 {
 	unsigned short mast_stat = read_MASTER_STAT(iface);
@@ -234,9 +232,9 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface,
 }
 
 /* Interrupt handler */
-static irqreturn_t bfin_twi_interrupt_entry(int irq, void *dev_id)
+static irqreturn_t adi_twi_interrupt_entry(int irq, void *dev_id)
 {
-	struct bfin_twi_iface *iface = dev_id;
+	struct adi_twi_iface *iface = dev_id;
 	unsigned long flags;
 	unsigned short twi_int_status;
 
@@ -247,7 +245,7 @@ static irqreturn_t bfin_twi_interrupt_entry(int irq, void *dev_id)
 			break;
 		/* Clear interrupt status */
 		write_INT_STAT(iface, twi_int_status);
-		bfin_twi_handle_interrupt(iface, twi_int_status);
+		adi_twi_handle_interrupt(iface, twi_int_status);
 		SSYNC();
 	}
 	spin_unlock_irqrestore(&iface->lock, flags);
@@ -257,10 +255,10 @@ static irqreturn_t bfin_twi_interrupt_entry(int irq, void *dev_id)
 /*
  * One i2c master transfer
  */
-static int bfin_twi_do_master_xfer(struct i2c_adapter *adap,
+static int adi_twi_do_master_xfer(struct i2c_adapter *adap,
 				struct i2c_msg *msgs, int num)
 {
-	struct bfin_twi_iface *iface = adap->algo_data;
+	struct adi_twi_iface *iface = adap->algo_data;
 	struct i2c_msg *pmsg;
 	int rc = 0;
 
@@ -328,7 +326,7 @@ static int bfin_twi_do_master_xfer(struct i2c_adapter *adap,
 	write_MASTER_CTL(iface, read_MASTER_CTL(iface) | MEN |
 		(iface->msg_num > 1 ? RSTART : 0) |
 		((iface->read_write == I2C_SMBUS_READ) ? MDIR : 0) |
-		((CONFIG_I2C_BLACKFIN_TWI_CLK_KHZ > 100) ? FAST : 0));
+		((CONFIG_I2C_ADI_TWI_CLK_KHZ > 100) ? FAST : 0));
 	SSYNC();
 
 	while (!iface->result) {
@@ -350,20 +348,20 @@ static int bfin_twi_do_master_xfer(struct i2c_adapter *adap,
 /*
  * Generic i2c master transfer entrypoint
  */
-static int bfin_twi_master_xfer(struct i2c_adapter *adap,
+static int adi_twi_master_xfer(struct i2c_adapter *adap,
 				struct i2c_msg *msgs, int num)
 {
-	return bfin_twi_do_master_xfer(adap, msgs, num);
+	return adi_twi_do_master_xfer(adap, msgs, num);
 }
 
 /*
  * One I2C SMBus transfer
  */
-int bfin_twi_do_smbus_xfer(struct i2c_adapter *adap, u16 addr,
+int adi_twi_do_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 			unsigned short flags, char read_write,
 			u8 command, int size, union i2c_smbus_data *data)
 {
-	struct bfin_twi_iface *iface = adap->algo_data;
+	struct adi_twi_iface *iface = adap->algo_data;
 	int rc = 0;
 
 	if (!(read_CONTROL(iface) & TWI_ENA))
@@ -479,7 +477,7 @@ int bfin_twi_do_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 		}
 		/* Master enable */
 		write_MASTER_CTL(iface, read_MASTER_CTL(iface) | MEN |
-			((CONFIG_I2C_BLACKFIN_TWI_CLK_KHZ>100) ? FAST : 0));
+			((CONFIG_I2C_ADI_TWI_CLK_KHZ>100) ? FAST : 0));
 		break;
 	case TWI_I2C_MODE_COMBINED:
 		write_XMT_DATA8(iface, iface->command);
@@ -492,7 +490,7 @@ int bfin_twi_do_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 			write_MASTER_CTL(iface, 0x1 << 6);
 		/* Master enable */
 		write_MASTER_CTL(iface, read_MASTER_CTL(iface) | MEN | RSTART |
-			((CONFIG_I2C_BLACKFIN_TWI_CLK_KHZ>100) ? FAST : 0));
+			((CONFIG_I2C_ADI_TWI_CLK_KHZ>100) ? FAST : 0));
 		break;
 	default:
 		write_MASTER_CTL(iface, 0);
@@ -536,7 +534,7 @@ int bfin_twi_do_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 		/* Master enable */
 		write_MASTER_CTL(iface, read_MASTER_CTL(iface) | MEN |
 			((iface->read_write == I2C_SMBUS_READ) ? MDIR : 0) |
-			((CONFIG_I2C_BLACKFIN_TWI_CLK_KHZ > 100) ? FAST : 0));
+			((CONFIG_I2C_ADI_TWI_CLK_KHZ > 100) ? FAST : 0));
 		break;
 	}
 	SSYNC();
@@ -557,18 +555,18 @@ int bfin_twi_do_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 /*
  * Generic I2C SMBus transfer entrypoint
  */
-int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
+int adi_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 			unsigned short flags, char read_write,
 			u8 command, int size, union i2c_smbus_data *data)
 {
-	return bfin_twi_do_smbus_xfer(adap, addr, flags,
+	return adi_twi_do_smbus_xfer(adap, addr, flags,
 			read_write, command, size, data);
 }
 
 /*
  * Return what the adapter supports
  */
-static u32 bfin_twi_functionality(struct i2c_adapter *adap)
+static u32 adi_twi_functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
 	       I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
@@ -576,15 +574,15 @@ static u32 bfin_twi_functionality(struct i2c_adapter *adap)
 	       I2C_FUNC_I2C | I2C_FUNC_SMBUS_I2C_BLOCK;
 }
 
-static struct i2c_algorithm bfin_twi_algorithm = {
-	.master_xfer   = bfin_twi_master_xfer,
-	.smbus_xfer    = bfin_twi_smbus_xfer,
-	.functionality = bfin_twi_functionality,
+static struct i2c_algorithm adi_twi_algorithm = {
+	.master_xfer   = adi_twi_master_xfer,
+	.smbus_xfer    = adi_twi_smbus_xfer,
+	.functionality = adi_twi_functionality,
 };
 
-static int i2c_bfin_twi_suspend(struct device *dev)
+static int i2c_adi_twi_suspend(struct device *dev)
 {
-	struct bfin_twi_iface *iface = dev_get_drvdata(dev);
+	struct adi_twi_iface *iface = dev_get_drvdata(dev);
 
 	iface->saved_clkdiv = read_CLKDIV(iface);
 	iface->saved_control = read_CONTROL(iface);
@@ -597,11 +595,11 @@ static int i2c_bfin_twi_suspend(struct device *dev)
 	return 0;
 }
 
-static int i2c_bfin_twi_resume(struct device *dev)
+static int i2c_adi_twi_resume(struct device *dev)
 {
-	struct bfin_twi_iface *iface = dev_get_drvdata(dev);
+	struct adi_twi_iface *iface = dev_get_drvdata(dev);
 
-	int rc = request_irq(iface->irq, bfin_twi_interrupt_entry,
+	int rc = request_irq(iface->irq, adi_twi_interrupt_entry,
 		0, to_platform_device(dev)->name, iface);
 	if (rc) {
 		dev_err(dev, "Can't get IRQ %d !\n", iface->irq);
@@ -617,18 +615,18 @@ static int i2c_bfin_twi_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(i2c_bfin_twi_pm,
-			 i2c_bfin_twi_suspend, i2c_bfin_twi_resume);
+static SIMPLE_DEV_PM_OPS(i2c_adi_twi_pm,
+			 i2c_adi_twi_suspend, i2c_adi_twi_resume);
 
-static int i2c_bfin_twi_probe(struct platform_device *pdev)
+static int i2c_adi_twi_probe(struct platform_device *pdev)
 {
-	struct bfin_twi_iface *iface;
+	struct adi_twi_iface *iface;
 	struct i2c_adapter *p_adap;
 	struct resource *res;
 	int rc;
 	unsigned int clkhilow;
 
-	iface = kzalloc(sizeof(struct bfin_twi_iface), GFP_KERNEL);
+	iface = kzalloc(sizeof(struct adi_twi_iface), GFP_KERNEL);
 	if (!iface) {
 		dev_err(&pdev->dev, "Cannot allocate memory\n");
 		rc = -ENOMEM;
@@ -662,7 +660,7 @@ static int i2c_bfin_twi_probe(struct platform_device *pdev)
 	p_adap = &iface->adap;
 	p_adap->nr = pdev->id;
 	strlcpy(p_adap->name, pdev->name, sizeof(p_adap->name));
-	p_adap->algo = &bfin_twi_algorithm;
+	p_adap->algo = &adi_twi_algorithm;
 	p_adap->algo_data = iface;
 	p_adap->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	p_adap->dev.parent = &pdev->dev;
@@ -670,13 +668,13 @@ static int i2c_bfin_twi_probe(struct platform_device *pdev)
 	p_adap->retries = 3;
 
 	rc = peripheral_request_list((unsigned short *)pdev->dev.platform_data,
-					"i2c-bfin-twi");
+					"i2c-adi-twi");
 	if (rc) {
 		dev_err(&pdev->dev, "Can't setup pin mux!\n");
 		goto out_error_pin_mux;
 	}
 
-	rc = request_irq(iface->irq, bfin_twi_interrupt_entry,
+	rc = request_irq(iface->irq, adi_twi_interrupt_entry,
 		0, pdev->name, iface);
 	if (rc) {
 		dev_err(&pdev->dev, "Can't get IRQ %d !\n", iface->irq);
@@ -691,7 +689,7 @@ static int i2c_bfin_twi_probe(struct platform_device *pdev)
 	 * We will not end up with a CLKDIV=0 because no one will specify
 	 * 20kHz SCL or less in Kconfig now. (5 * 1000 / 20 = 250)
 	 */
-	clkhilow = ((10 * 1000 / CONFIG_I2C_BLACKFIN_TWI_CLK_KHZ) + 1) / 2;
+	clkhilow = ((10 * 1000 / CONFIG_I2C_ADI_TWI_CLK_KHZ) + 1) / 2;
 
 	/* Set Twi interface clock as specified */
 	write_CLKDIV(iface, (clkhilow << 8) | clkhilow);
@@ -708,7 +706,7 @@ static int i2c_bfin_twi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, iface);
 
-	dev_info(&pdev->dev, "Blackfin on-chip I2C TWI Contoller, "
+	dev_info(&pdev->dev, "ADI on-chip I2C TWI Contoller, "
 		"regs_base@%p\n", iface->regs_base);
 
 	return 0;
@@ -727,9 +725,9 @@ out_error_nomem:
 	return rc;
 }
 
-static int i2c_bfin_twi_remove(struct platform_device *pdev)
+static int i2c_adi_twi_remove(struct platform_device *pdev)
 {
-	struct bfin_twi_iface *iface = platform_get_drvdata(pdev);
+	struct adi_twi_iface *iface = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&(iface->adap));
 	free_irq(iface->irq, iface);
@@ -740,30 +738,30 @@ static int i2c_bfin_twi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver i2c_bfin_twi_driver = {
-	.probe		= i2c_bfin_twi_probe,
-	.remove		= i2c_bfin_twi_remove,
+static struct platform_driver i2c_adi_twi_driver = {
+	.probe		= i2c_adi_twi_probe,
+	.remove		= i2c_adi_twi_remove,
 	.driver		= {
-		.name	= "i2c-bfin-twi",
+		.name	= "i2c-adi-twi",
 		.owner	= THIS_MODULE,
-		.pm	= &i2c_bfin_twi_pm,
+		.pm	= &i2c_adi_twi_pm,
 	},
 };
 
-static int __init i2c_bfin_twi_init(void)
+static int __init i2c_adi_twi_init(void)
 {
-	return platform_driver_register(&i2c_bfin_twi_driver);
+	return platform_driver_register(&i2c_adi_twi_driver);
 }
 
-static void __exit i2c_bfin_twi_exit(void)
+static void __exit i2c_adi_twi_exit(void)
 {
-	platform_driver_unregister(&i2c_bfin_twi_driver);
+	platform_driver_unregister(&i2c_adi_twi_driver);
 }
 
-subsys_initcall(i2c_bfin_twi_init);
-module_exit(i2c_bfin_twi_exit);
+subsys_initcall(i2c_adi_twi_init);
+module_exit(i2c_adi_twi_exit);
 
 MODULE_AUTHOR("Bryan Wu, Sonic Zhang");
-MODULE_DESCRIPTION("Blackfin on-chip I2C TWI Contoller Driver");
+MODULE_DESCRIPTION("ADI on-chip I2C TWI Contoller Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:i2c-bfin-twi");
+MODULE_ALIAS("platform:i2c-adi-twi");
