@@ -17,6 +17,9 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/usb/musb.h>
+#include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/platform_data/pinctrl-adi2.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/dma.h>
 #include <asm/gpio.h>
@@ -1215,9 +1218,66 @@ static struct platform_device *cm_bf548_devices[] __initdata = {
 
 };
 
+/* Pin control settings */
+static struct pinctrl_map __initdata bfin_pinmux_map[] = {
+	/* per-device maps */
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-uart.0",  "pinctrl-adi2.0", NULL, "uart0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-uart.1",  "pinctrl-adi2.0", NULL, "uart1"),
+#ifdef CONFIG_BFIN_UART1_CTSRTS
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-uart.1",  "pinctrl-adi2.0", NULL, "uart1_ctsrts"),
+#endif
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-uart.2",  "pinctrl-adi2.0", NULL, "uart2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-uart.3",  "pinctrl-adi2.0", NULL, "uart3"),
+#ifdef CONFIG_BFIN_UART3_CTSRTS
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-uart.3",  "pinctrl-adi2.0", NULL, "uart3_ctsrts"),
+#endif
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin_sir.0",  "pinctrl-adi2.0", NULL, "uart0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin_sir.1",  "pinctrl-adi2.0", NULL, "uart1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin_sir.2",  "pinctrl-adi2.0", NULL, "uart2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin_sir.3",  "pinctrl-adi2.0", NULL, "uart3"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-sdh.0",  "pinctrl-adi2.0", NULL, "rsi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-spi.0",  "pinctrl-adi2.0", NULL, "spi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-spi.1",  "pinctrl-adi2.0", NULL, "spi1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("i2c-adi-twi.0",  "pinctrl-adi2.0", NULL, "twi0"),
+#if !defined(CONFIG_BF542)	/* The BF542 only has 1 TWI */
+	PIN_MAP_MUX_GROUP_DEFAULT("i2c-adi-twi.1",  "pinctrl-adi2.0", NULL, "twi1"),
+#endif
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-rotary",  "pinctrl-adi2.0", NULL, "rotary"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin_can.0",  "pinctrl-adi2.0", NULL, "can0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin_can.1",  "pinctrl-adi2.0", NULL, "can1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bf54x-lq043",  "pinctrl-adi2.0", NULL, "ppi0_24b"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-i2s.0",  "pinctrl-adi2.0", NULL, "sport0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-tdm.0",  "pinctrl-adi2.0", NULL, "sport0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-ac97.0",  "pinctrl-adi2.0", NULL, "sport0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-i2s.1",  "pinctrl-adi2.0", NULL, "sport1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-tdm.1",  "pinctrl-adi2.0", NULL, "sport1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-ac97.1",  "pinctrl-adi2.0", NULL, "sport1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-i2s.2",  "pinctrl-adi2.0", NULL, "sport2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-tdm.2",  "pinctrl-adi2.0", NULL, "sport2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-ac97.2",  "pinctrl-adi2.0", NULL, "sport2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-i2s.3",  "pinctrl-adi2.0", NULL, "sport3"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-tdm.3",  "pinctrl-adi2.0", NULL, "sport3"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-ac97.3",  "pinctrl-adi2.0", NULL, "sport3"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-sport-uart.0",  "pinctrl-adi2.0", NULL, "sport0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-sport-uart.1",  "pinctrl-adi2.0", NULL, "sport1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-sport-uart.2",  "pinctrl-adi2.0", NULL, "sport2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bfin-sport-uart.3",  "pinctrl-adi2.0", NULL, "sport3"),
+	PIN_MAP_MUX_GROUP_DEFAULT("pata-bf54x",  "pinctrl-adi2.0", NULL, "atapi"),
+#ifdef CONFIG_BF548_ATAPI_ALTERNATIVE_PORT
+	PIN_MAP_MUX_GROUP_DEFAULT("pata-bf54x",  "pinctrl-adi2.0", NULL, "atapi_alter"),
+#endif
+	PIN_MAP_MUX_GROUP_DEFAULT("bf5xx-nand.0",  "pinctrl-adi2.0", NULL, "nfc0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bf54x-keys",  "pinctrl-adi2.0", NULL, "keys_4x4"),
+};
+
 static int __init cm_bf548_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
+
+	/* Initialize pinmuxing */
+	pinctrl_register_mappings(bfin_pinmux_map,
+				ARRAY_SIZE(bfin_pinmux_map));
+
 	platform_add_devices(cm_bf548_devices, ARRAY_SIZE(cm_bf548_devices));
 
 #if defined(CONFIG_SPI_BFIN5XX) || defined(CONFIG_SPI_BFIN5XX_MODULE)
