@@ -63,7 +63,6 @@ static void adi_twi_handle_interrupt(struct adi_twi_iface *iface,
 		/* Transmit next data */
 		while (iface->writeNum > 0 &&
 			(read_FIFO_STAT(iface) & XMTSTAT) != XMT_FULL) {
-			SSYNC();
 			write_XMT_DATA8(iface, *(iface->transPtr++));
 			iface->writeNum--;
 		}
@@ -246,7 +245,6 @@ static irqreturn_t adi_twi_interrupt_entry(int irq, void *dev_id)
 		/* Clear interrupt status */
 		write_INT_STAT(iface, twi_int_status);
 		adi_twi_handle_interrupt(iface, twi_int_status);
-		SSYNC();
 	}
 	spin_unlock_irqrestore(&iface->lock, flags);
 	return IRQ_HANDLED;
@@ -292,9 +290,7 @@ static int adi_twi_do_master_xfer(struct i2c_adapter *adap,
 	 *  discarded before start a new operation.
 	 */
 	write_FIFO_CTL(iface, 0x3);
-	SSYNC();
 	write_FIFO_CTL(iface, 0);
-	SSYNC();
 
 	if (pmsg->flags & I2C_M_RD)
 		iface->read_write = I2C_SMBUS_READ;
@@ -304,7 +300,6 @@ static int adi_twi_do_master_xfer(struct i2c_adapter *adap,
 		if (iface->writeNum > 0) {
 			write_XMT_DATA8(iface, *(iface->transPtr++));
 			iface->writeNum--;
-			SSYNC();
 		}
 	}
 
@@ -313,7 +308,6 @@ static int adi_twi_do_master_xfer(struct i2c_adapter *adap,
 
 	/* Interrupt mask . Enable XMT, RCV interrupt */
 	write_INT_MASK(iface, MCOMP | MERR | RCVSERV | XMTSERV);
-	SSYNC();
 
 	if (pmsg->len <= 255)
 		write_MASTER_CTL(iface, pmsg->len << 6);
@@ -327,7 +321,6 @@ static int adi_twi_do_master_xfer(struct i2c_adapter *adap,
 		(iface->msg_num > 1 ? RSTART : 0) |
 		((iface->read_write == I2C_SMBUS_READ) ? MDIR : 0) |
 		((CONFIG_I2C_ADI_TWI_CLK_KHZ > 100) ? FAST : 0));
-	SSYNC();
 
 	while (!iface->result) {
 		if (!wait_for_completion_timeout(&iface->complete,
@@ -451,7 +444,6 @@ int adi_twi_do_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 	 * start a new operation.
 	 */
 	write_FIFO_CTL(iface, 0x3);
-	SSYNC();
 	write_FIFO_CTL(iface, 0);
 
 	/* clear int stat */
@@ -459,7 +451,6 @@ int adi_twi_do_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 
 	/* Set Transmit device address */
 	write_MASTER_ADDR(iface, addr);
-	SSYNC();
 
 	switch (iface->cur_mode) {
 	case TWI_I2C_MODE_STANDARDSUB:
@@ -467,7 +458,6 @@ int adi_twi_do_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 		write_INT_MASK(iface, MCOMP | MERR |
 			((iface->read_write == I2C_SMBUS_READ) ?
 			RCVSERV : XMTSERV));
-		SSYNC();
 
 		if (iface->writeNum + 1 <= 255)
 			write_MASTER_CTL(iface, (iface->writeNum + 1) << 6);
@@ -482,7 +472,6 @@ int adi_twi_do_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 	case TWI_I2C_MODE_COMBINED:
 		write_XMT_DATA8(iface, iface->command);
 		write_INT_MASK(iface, MCOMP | MERR | RCVSERV | XMTSERV);
-		SSYNC();
 
 		if (iface->writeNum > 0)
 			write_MASTER_CTL(iface, (iface->writeNum + 1) << 6);
@@ -529,7 +518,6 @@ int adi_twi_do_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 		write_INT_MASK(iface, MCOMP | MERR |
 			((iface->read_write == I2C_SMBUS_READ) ?
 			RCVSERV : XMTSERV));
-		SSYNC();
 
 		/* Master enable */
 		write_MASTER_CTL(iface, read_MASTER_CTL(iface) | MEN |
@@ -537,7 +525,6 @@ int adi_twi_do_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 			((CONFIG_I2C_ADI_TWI_CLK_KHZ > 100) ? FAST : 0));
 		break;
 	}
-	SSYNC();
 
 	while (!iface->result) {
 		if (!wait_for_completion_timeout(&iface->complete,
@@ -696,7 +683,6 @@ static int i2c_adi_twi_probe(struct platform_device *pdev)
 
 	/* Enable TWI */
 	write_CONTROL(iface, read_CONTROL(iface) | TWI_ENA);
-	SSYNC();
 
 	rc = i2c_add_numbered_adapter(p_adap);
 	if (rc < 0) {
