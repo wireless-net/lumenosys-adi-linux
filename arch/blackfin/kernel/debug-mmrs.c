@@ -19,7 +19,7 @@
 #include <asm/bfin_ppi.h>
 #include <asm/bfin_serial.h>
 #include <asm/bfin5xx_spi.h>
-#include <asm/bfin_twi.h>
+#include <asm/twi.h>
 
 /* Common code defines PORT_MUX on us, so redirect the MMR back locally */
 #ifdef BFIN_PORT_MUX
