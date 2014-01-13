@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/i2c/i2c-adi.h>
 
 #include <asm/blackfin.h>
 #include <asm/gpio.h>
@@ -38,16 +39,17 @@
 #define D16(name)        d(#name, 16, name)
 
 #define REGS_OFF(peri, mmr) offsetof(struct bfin_##peri##_regs, mmr)
-#define __REGS(peri, sname, rname) \
+#define __REGS_PRE(peri, sname, rname, pre) \
 	do { \
-		struct bfin_##peri##_regs r; \
-		void *addr = (void *)(base + REGS_OFF(peri, rname)); \
+		struct pre##_##peri##_regs r; \
+		void *addr = (void *)(base + offsetof(struct pre##_##peri##_regs, rname)); \
 		strcpy(_buf, sname); \
 		if (sizeof(r.rname) == 2) \
 			debugfs_create_x16(buf, S_IRUSR|S_IWUSR, parent, addr); \
 		else \
 			debugfs_create_x32(buf, S_IRUSR|S_IWUSR, parent, addr); \
 	} while (0)
+#define __REGS(peri, sname, rname) __REGS_PRE(peri, sname, rname, bfin)
 #define REGS_STR_PFX(buf, pfx, num) \
 	({ \
 		buf + (num >= 0 ? \
@@ -510,7 +512,7 @@ bfin_debug_mmrs_sport(struct dentry *parent, unsigned long base, int num)
 /*
  * TWI
  */
-#define __TWI(uname, lname) __REGS(twi, #uname, lname)
+#define __TWI(uname, lname) __REGS_PRE(twi, #uname, lname, adi)
 static void __init __maybe_unused
 bfin_debug_mmrs_twi(struct dentry *parent, unsigned long base, int num)
 {
