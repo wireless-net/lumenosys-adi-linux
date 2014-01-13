@@ -25,12 +25,12 @@
 
 #ifndef __ASSEMBLY__
 
-#ifndef CONFIG_PINCTRL
-
 #include <linux/compiler.h>
 #include <asm/blackfin.h>
 #include <asm/portmux.h>
 #include <asm/irq_handler.h>
+
+#ifndef CONFIG_PINCTRL
 
 /***********************************************************
 *
