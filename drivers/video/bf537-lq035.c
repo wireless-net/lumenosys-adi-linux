@@ -900,7 +900,7 @@ static struct platform_driver bfin_lq035_driver = {
 
 static int __init bfin_lq035_driver_init(void)
 {
-	request_module("i2c-bfin-twi");
+	request_module("i2c-adi-twi");
 	return platform_driver_register(&bfin_lq035_driver);
 }
 module_init(bfin_lq035_driver_init);
