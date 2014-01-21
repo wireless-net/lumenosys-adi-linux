@@ -1745,7 +1745,7 @@ M:	Sonic Zhang <sonic.zhang@analog.com>
 L:	adi-buildroot-devel@lists.sourceforge.net
 W:	http://blackfin.uclinux.org/
 S:	Supported
-F:	drivers/i2c/busses/i2c-bfin-twi.c
+F:	drivers/i2c/busses/i2c-adi-twi.c
 
 BLACKFIN MEDIA DRIVER
 M:	Scott Jiang <scott.jiang.linux@gmail.com>
