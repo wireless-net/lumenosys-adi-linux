@@ -760,15 +760,6 @@ _new_old_task:
 ENDPROC(_resume)
 
 ENTRY(_ret_from_exception)
-#ifdef CONFIG_IPIPE
-	p2.l = _ipipe_percpu_domain;
-	p2.h = _ipipe_percpu_domain;
-	r0.l = _ipipe_root;
-	r0.h = _ipipe_root;
-	r2 = [p2];
-	cc = r0 == r2;
-	if !cc jump 4f;  /* not on behalf of the root domain, get out */
-#endif /* CONFIG_IPIPE */
 	p2.l = lo(IPEND);
 	p2.h = hi(IPEND);
 
@@ -796,6 +787,16 @@ ENTRY(_ret_from_exception)
 	r0 = r0 & r1;
 	cc = r0 == 0;
 	if !cc jump 5f;
+#ifdef CONFIG_IPIPE
+	p2.l = _ipipe_percpu;
+	p2.h = _ipipe_percpu;
+	p2 = [p2+IPIPE_CURRENT_DOMAIN];
+	r2 = [p2+IPIPE_DOMAIN_DESC];
+	r0.l = _ipipe_root;
+	r0.h = _ipipe_root;
+	cc = r0 == r2;
+	if !cc jump 5f;  /* not on behalf of the root domain, get out */
+#endif /* CONFIG_IPIPE */
 
 	/* Set the stack for the current process */
 	r7 = sp;

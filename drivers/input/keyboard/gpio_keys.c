@@ -508,7 +508,7 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 			bdata->irq, error);
 		goto fail;
 	}
-
+	//enable_irq_wake(irq);
 	return 0;
 
 fail:

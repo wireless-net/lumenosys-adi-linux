@@ -68,7 +68,12 @@ static int kgdboc_break_enabled;
 #define DMA_RX_XCOUNT		512
 #define DMA_RX_YCOUNT		(PAGE_SIZE / DMA_RX_XCOUNT)
 
-#define DMA_RX_FLUSH_JIFFIES	(HZ / 50)
+/* experimental low latency serial receive: poll at 1000 Hz */
+#if ((HZ/1000) < 1)
+#define DMA_RX_FLUSH_JIFFIES	1
+#else
+#define DMA_RX_FLUSH_JIFFIES    (HZ / 1000)
+#endif
 
 #ifdef CONFIG_SERIAL_BFIN_DMA
 static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart);
@@ -407,6 +412,7 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 	uart->tx_count = CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE);
 	if (uart->tx_count > (UART_XMIT_SIZE - xmit->tail))
 		uart->tx_count = UART_XMIT_SIZE - xmit->tail;
+
 	blackfin_dcache_flush_range((unsigned long)(xmit->buf+xmit->tail),
 					(unsigned long)(xmit->buf+xmit->tail+uart->tx_count));
 	set_dma_config(uart->tx_dma_channel,
@@ -484,7 +490,7 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 
 	/* 2D DMA RX buffer ring is used. Because curr_y_count and
 	 * curr_x_count can't be read as an atomic operation,
-	 * curr_y_count should be read before curr_x_count. When
+ 	 * curr_y_count should be read before curr_x_count. When
 	 * curr_x_count is read, curr_y_count may already indicate
 	 * next buffer line. But, the position calculated here is
 	 * still indicate the old line. The wrong position data may
@@ -493,14 +499,39 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 	 */
 	uart->rx_dma_nrows = get_dma_curr_ycount(uart->rx_dma_channel);
 	x_pos = get_dma_curr_xcount(uart->rx_dma_channel);
+	/* if (uart->port.line == 1) { */
+	/* 	printk("==> 1 rx_dma_nrows = %d\n", uart->rx_dma_nrows); */
+	/* 	printk("==> 2 xpos= %d\n", x_pos);		 */
+	/* } */
 	uart->rx_dma_nrows = DMA_RX_YCOUNT - uart->rx_dma_nrows;
+
+	/* if (uart->port.line == 1) { */
+	/* 	printk("==> 3 rx_dma_nrows = %d\n", uart->rx_dma_nrows); */
+	/* } */
+
 	if (uart->rx_dma_nrows == DMA_RX_YCOUNT || x_pos == 0)
 		uart->rx_dma_nrows = 0;
+
+	/* if (uart->port.line == 1) { */
+	/* 	printk("==> 4 rx_dma_nrows = %d\n", uart->rx_dma_nrows); */
+	/* } */
+
+
 	x_pos = DMA_RX_XCOUNT - x_pos;
 	if (x_pos == DMA_RX_XCOUNT)
 		x_pos = 0;
 
+	/* if (uart->port.line == 1) { */
+	/* 	printk("==> 5 xpos= %d\n", x_pos);		 */
+	/* } */
+
+
 	pos = uart->rx_dma_nrows * DMA_RX_XCOUNT + x_pos;
+
+	/* if (uart->port.line == 1) { */
+	/* 	printk("==> 6 pos= %d\n", pos);		 */
+	/* } */
+
 	/* Ignore receiving data if new position is in the same line of
 	 * current buffer tail and small.
 	 */
@@ -539,7 +570,6 @@ static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id)
 			if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 				uart_write_wakeup(&uart->port);
 		}
-
 		bfin_serial_dma_tx_chars(uart);
 	}
 
@@ -1121,6 +1151,52 @@ static void bfin_serial_console_putchar(struct uart_port *port, int ch)
 		barrier();
 	UART_PUT_CHAR(uart, ch);
 }
+
+#ifdef CONFIG_IPIPE
+
+#include <stdarg.h>
+
+void __ipipe_serial_debug(const char *fmt, ...)
+{
+	struct bfin_serial_port *uart = bfin_serial_ports[0];
+	unsigned short status;
+	int flags, i, count;
+	char buf[128];
+	va_list ap;
+
+	if (uart == NULL || port_membase(uart) == NULL)
+		return;
+
+	va_start(ap, fmt);
+	vsprintf(buf, fmt, ap);
+	va_end(ap);
+	count = strlen(buf);
+
+	flags = hard_local_irq_save();
+
+	for (i = 0; i < count; i++) {
+		do {
+			status = UART_GET_LSR(uart);
+		} while (!(status & THRE));
+
+#ifndef CONFIG_BF54x
+		UART_CLEAR_DLAB(uart);
+#endif
+
+		UART_PUT_CHAR(uart, buf[i]);
+		if (buf[i] == '\n') {
+			do {
+				status = UART_GET_LSR(uart);
+			} while(!(status & THRE));
+			UART_PUT_CHAR(uart, '\r');
+		}
+	}
+
+	hard_local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(__ipipe_serial_debug);
+
+#endif /* CONFIG_IPIPE */
 
 #endif /* defined (CONFIG_SERIAL_BFIN_CONSOLE) ||
 		 defined (CONFIG_EARLY_PRINTK) */

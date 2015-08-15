@@ -21,6 +21,11 @@ obj-$(CONFIG_BFIN_OTP)		+= bfin-otp.o
 obj-$(CONFIG_BFIN_PPI)		+= bfin_ppi.o
 obj-$(CONFIG_BFIN_EPPI)          += bfin_eppi.o
 obj-$(CONFIG_BFIN_SIMPLE_TIMER)	+= bfin_simple_timer.o
+
+EXTRA_CFLAGS += -D__IN_XENOMAI__ -Iinclude/xenomai
+obj-$(CONFIG_BFIN_RTDM_TIMER)	+= bfin_rtdm_timer.o
+obj-$(CONFIG_BFIN_RTDM_I2C)	+= bfin_rtdm_i2c.o
+
 obj-$(CONFIG_BFIN_CRC)		+= bfin_crc.o
 obj-$(CONFIG_BFIN_SPORT)	+= bfin_sport.o
 obj-$(CONFIG_BFIN_LINKPORT)	+= bfin_lp.o

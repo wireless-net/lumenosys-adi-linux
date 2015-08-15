@@ -28,6 +28,14 @@
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_IPIPE
+#include <ipipe/thread_info.h>
+#else
+struct ipipe_threadinfo {
+};
+static inline void __ipipe_init_threadinfo(struct ipipe_threadinfo *p) { }
+#endif
+
 typedef unsigned long mm_segment_t;
 
 /*
@@ -43,6 +51,7 @@ struct thread_info {
 	int preempt_count;	/* 0 => preemptable, <0 => BUG */
 	mm_segment_t addr_limit;	/* address limit */
 	struct restart_block restart_block;
+	struct ipipe_threadinfo ipipe_data;
 #ifndef CONFIG_SMP
 	struct l1_scratch_task_info l1_task_info;
 #endif

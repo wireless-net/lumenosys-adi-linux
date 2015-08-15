@@ -48,6 +48,36 @@ config BFIN_SIMPLE_TIMER
 	  provides an interface to the above Blackfin General Purpose timers
 	  hardware.  See drivers/char/bfin_simple_timer.c for details.
 
+config BFIN_RTDM_TIMER
+	tristate "Blackfin General Purpose Timers char device driver (RTDM version)"
+        depends on XENO_SKIN_RTDM
+	select BFIN_GPTIMERS
+	default n
+	help
+	  If you say Y here, you will get an RTDM char-device driver that
+	  provides an interface to the above Blackfin General Purpose timers
+	  hardware.  See drivers/char/bfin_rtdm_timer.c for details.
+
+config BFIN_RTDM_I2C
+	tristate "Blackfin Real-time I2C device driver (RTDM)"
+        depends on XENO_SKIN_RTDM
+	depends on !I2C
+	default n
+	help
+	  If you say Y here, you will get an RTDM char-device driver
+	  that provides an interface to the Blackfin on-chip TWI
+	  hardware. This can be used for simple interfacing with
+	  external I2C and SMBUS devices in a real-time
+	  context. drivers/char/bfin_rtdm_i2c.c for details.
+
+config BFIN_RTDM_I2C_CLK_KHZ
+	int "Blackfin RTDM I2C clock (kHz)"
+	depends on BFIN_RTDM_I2C
+	range 21 400
+	default 50
+	help
+	  The unit of the TWI clock is kHz.
+
 config BFIN_CRC
 	tristate "Blackfin hardware CRC driver"
 	depends on BF60x

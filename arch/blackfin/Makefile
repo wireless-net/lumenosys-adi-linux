@@ -166,3 +166,5 @@ define archhelp
   echo  '                     (distribution) PATH: $(INSTALLKERNEL) or'
   echo  '                     install to $$(INSTALL_PATH)'
 endef
+
+drivers-$(CONFIG_XENOMAI) += arch/blackfin/xenomai/

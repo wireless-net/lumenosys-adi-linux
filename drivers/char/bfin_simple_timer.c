@@ -25,15 +25,22 @@
  *
  * Licensed under the GPL-2 or later.
  */
-
+/* 
+ * With modifications for the Lumenosys Obsidian ION BSP,  db@lumenosys.com
+ */
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/uaccess.h>
+#include <linux/wait.h>
+#include <linux/semaphore.h>
+#include <linux/poll.h>
 #include <asm/gptimers.h>
+#include <asm/bitops.h>
 #include <asm/irq.h>
 #include <asm/bfin_simple_timer.h>
 #include <asm/bfin-global.h>
@@ -51,7 +58,10 @@ struct timer {
 	unsigned short per_pin;
 	unsigned long irqbit, isr_count;
 	int irq;
+	wait_queue_head_t wq;
 };
+
+//static DECLARE_WAIT_QUEUE_HEAD(wq);
 
 static struct timer timer_code[MAX_BLACKFIN_GPTIMERS] = {
 	{TIMER0_id,  TIMER0bit,  P_TMR0, TIMER_STATUS_TIMIL0, 0, IRQ_TIMER0},
@@ -101,17 +111,25 @@ timer_ioctl(struct file *filp, uint cmd, unsigned long arg)
 		case BFIN_SIMPLE_TIMER_MODE_PWM_ONESHOT:
 #ifdef CONFIG_BF60x
 			set_gptimer_config(t->id,  TIMER_OUT_DIS | TIMER_MODE_PWM
-					| TIMER_PULSE_HI | TIMER_IRQ_WID_DLY);
+					/* | TIMER_PULSE_HI */ | TIMER_IRQ_WID_DLY);
 #else
-			set_gptimer_config(t->id, OUT_DIS | PWM_OUT | PERIOD_CNT | IRQ_ENA);
+			set_gptimer_config(t->id, /* OUT_DIS | */PWM_OUT /* | PERIOD_CNT | IRQ_ENA */);
 #endif
 			break;
 		case BFIN_SIMPLE_TIMER_MODE_PWMOUT_CONT:
 #ifdef CONFIG_BF60x
 			set_gptimer_config(t->id,  TIMER_MODE_PWM_CONT
-						| TIMER_PULSE_HI | TIMER_IRQ_PER);
+						/* | TIMER_PULSE_HI */ | TIMER_IRQ_PER);
 #else
-			set_gptimer_config(t->id, PWM_OUT | PERIOD_CNT | IRQ_ENA);
+			set_gptimer_config(t->id,  PWM_OUT | PERIOD_CNT | IRQ_ENA);
+#endif
+			break;
+		case BFIN_SIMPLE_TIMER_MODE_PWMOUT_CONT_OUT_DIS:
+#ifdef CONFIG_BF60x
+			set_gptimer_config(t->id,  TIMER_MODE_PWM_CONT
+						/* | TIMER_PULSE_HI */ | TIMER_OUT_DIS | TIMER_IRQ_PER);
+#else
+			set_gptimer_config(t->id,  PWM_OUT | PERIOD_CNT | OUT_DIS | IRQ_ENA);
 #endif
 			break;
 		case BFIN_SIMPLE_TIMER_MODE_WDTH_CAP:
@@ -124,13 +142,39 @@ timer_ioctl(struct file *filp, uint cmd, unsigned long arg)
 		case BFIN_SIMPLE_TIMER_MODE_PWMOUT_CONT_NOIRQ:
 #ifdef CONFIG_BF60x
 			set_gptimer_config(t->id,  TIMER_MODE_PWM_CONT
-						| TIMER_PULSE_HI);
+						/* | TIMER_PULSE_HI */);
 #else
 			set_gptimer_config(t->id, PWM_OUT | PERIOD_CNT);
 #endif
 			break;
-		default:
-			pr_debug(DRV_NAME ": error mode\n");
+
+		case BFIN_SIMPLE_TIMER_MODE_PWM_ONESHOT_HIGH:
+#ifdef CONFIG_BF60x
+			set_gptimer_config(t->id,  TIMER_OUT_DIS | TIMER_MODE_PWM
+					| TIMER_PULSE_HI | TIMER_IRQ_WID_DLY);
+#else
+			set_gptimer_config(t->id, /* OUT_DIS | */ TIMER_PULSE_HI |PWM_OUT /* | PERIOD_CNT | IRQ_ENA */);
+#endif
+			break;
+		case BFIN_SIMPLE_TIMER_MODE_PWMOUT_CONT_HIGH:
+#ifdef CONFIG_BF60x
+			set_gptimer_config(t->id,  TIMER_MODE_PWM_CONT
+						| TIMER_PULSE_HI | TIMER_IRQ_PER);
+#else
+			set_gptimer_config(t->id, TIMER_PULSE_HI | PWM_OUT | PERIOD_CNT | IRQ_ENA);
+#endif
+			break;
+		case BFIN_SIMPLE_TIMER_MODE_PWMOUT_CONT_NOIRQ_HIGH:
+#ifdef CONFIG_BF60x
+			set_gptimer_config(t->id,  TIMER_MODE_PWM_CONT
+						| TIMER_PULSE_HI);
+#else
+			set_gptimer_config(t->id, TIMER_PULSE_HI | PWM_OUT | PERIOD_CNT);
+#endif
+			break;
+
+        default:
+			printk(DRV_NAME ": error: invalid mode\n");
 		}
 		break;
 	case BFIN_SIMPLE_TIMER_START:
@@ -155,14 +199,19 @@ timer_ioctl(struct file *filp, uint cmd, unsigned long arg)
 	return 0;
 }
 
-static irqreturn_t
-timer_isr(int irq, void *dev_id)
+/*
+ * Timer interrupt handler
+ */
+static irqreturn_t timer_isr(int irq, void *dev_id)
 {
 	int minor = (int)dev_id;
 	struct timer *t = &timer_code[minor];
 	if (get_gptimer_intr(t->id)) {
 		clear_gptimer_intr(t->id);
 		t->isr_count++;
+		set_bit(0, &t->irqbit); /* atomic set bit */
+		/* unblock any readers */
+		wake_up_interruptible(&t->wq);
 	}
 	return IRQ_HANDLED;
 }
@@ -179,20 +228,23 @@ timer_open(struct inode *inode, struct file *filp)
 
 	t = &timer_code[minor];
 	filp->private_data = t;
-
+	init_waitqueue_head(&t->wq);
+    
 	err = request_irq(t->irq, timer_isr, IRQF_DISABLED, DRV_NAME, (void *)minor);
 	if (err < 0) {
 		printk(KERN_ERR "request_irq(%d) failed\n", t->irq);
 		return err;
 	}
 
-	err = peripheral_request(t->per_pin, "timer test");
+	err = peripheral_request(t->per_pin, "timer driver");
 	if (err) {
 		printk(KERN_ERR "request pin(%d) failed\n", t->per_pin);
 		free_irq(t->irq, (void *)minor);
 		return err;
 	}
 
+	//sema_init(&t->sem);
+    
 	pr_debug(DRV_NAME ": device(%d) opened\n", minor);
 
 	return 0;
@@ -210,17 +262,88 @@ timer_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int
-timer_read_proc(char *buf, char **start, off_t offset, int cnt, int *eof, void *data)
+/*
+ * This read routine added to allow an application to do a blocking
+ * read and receive the next captured width and period values when a
+ * timer is configured for CAPTURE mode.
+ */
+static ssize_t timer_read(struct file *filp, char __user *buf, size_t count, loff_t *off)
 {
-	int i, ret = 0;
+	struct timer *t = filp->private_data;
+	unsigned long data[2];
+	int ret;
+	size_t len;
+	DEFINE_WAIT(wait);
+	
+	//printk(KERN_INFO DRV_NAME ": read() called\n");
+	
+	/* not supported */
+	if (filp->f_flags & O_NONBLOCK)
+		return -EAGAIN;
+	
+	if (!test_bit(0,&t->irqbit)) { /* atomic test bit */
+		//printk(KERN_INFO DRV_NAME ": going to sleep\n");
+		prepare_to_wait(&t->wq, &wait, TASK_INTERRUPTIBLE);
+		schedule();                   /* yield to the scheduler */
+	}
+	
+	/* got woken up */
+	finish_wait(&t->wq, &wait);
+	
+	//printk(KERN_INFO DRV_NAME ": woke up!\n");
+	
+	/* handle possible signal */
+	if (signal_pending(current))
+		return -ERESTARTSYS;      /* caught signal */
+	
+	/* otherwise, a measurement report event occured */
+	
+	/* read the current values (which were captured) */
+	data[0] = get_gptimer_pwidth(t->id);
+	data[1] = get_gptimer_period(t->id);
+	
+	len = 2*sizeof(unsigned long);
+	if (count < len)
+		len = count;
+	
+	ret = copy_to_user(buf, data, len);
+	
+	clear_bit(0, &t->irqbit); /* atomic clear bit */
 
-	ret += sprintf(buf + ret, "sclk = %lu\n", get_sclk());
+	return len;
+}
+
+unsigned int timer_poll(struct file *filp, poll_table *wait)
+{
+	struct timer *t = filp->private_data;
+	unsigned int mask = 0;
+
+	/* add wait to the poll table */
+	poll_wait(filp, &t->wq, wait);
+
+	if (test_bit(0, &t->irqbit)) {	  /* atomic test */
+		mask|= POLLIN|POLLRDNORM; /* readable */
+		clear_bit(0, &t->irqbit); /* atomic clear bit */
+	}
+	return mask;
+}
+
+static int
+timer_read_proc(struct seq_file *m, void *v)
+{
+	int i;
+
+	seq_printf(m, "sclk = %lu\n", get_sclk());
 	for (i = 0; i < MAX_BLACKFIN_GPTIMERS; ++i)
-		ret += sprintf(buf + ret, "timer %2d isr count: %lu\n",
+		seq_printf(m, "timer %2d isr count: %lu\n",
 			i, timer_code[i].isr_count);
+	return 0;
+}
 
-	return ret;
+static int
+timer_open_proc(struct inode *inode, struct file *file)
+{
+	return single_open(file, timer_read_proc, NULL);
 }
 
 static ssize_t
@@ -242,7 +365,16 @@ static const struct file_operations fops = {
 	.owner          = THIS_MODULE,
 	.unlocked_ioctl = timer_ioctl,
 	.open           = timer_open,
+	.read           = timer_read,
 	.release        = timer_close,
+	.poll           = timer_poll
+};
+
+static const struct file_operations timer_proc_fops = {
+	.open = timer_open_proc,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release,
 };
 
 static struct proc_dir_entry *timer_dir_entry;
@@ -260,9 +392,9 @@ static int __init timer_initialize(void)
 		return err;
 	}
 
-	timer_dir_entry = create_proc_entry(DRV_NAME, 0444, NULL);
-	if (timer_dir_entry)
-		timer_dir_entry->read_proc = &timer_read_proc;
+	timer_dir_entry = proc_create(DRV_NAME, 0444, NULL, &timer_proc_fops);
+	if (!timer_dir_entry)
+		return -ENOMEM;
 
 	timer_class = class_create(THIS_MODULE, "timer");
 	err = class_create_file(timer_class, &class_attr_status);
@@ -282,6 +414,7 @@ static int __init timer_initialize(void)
 			NULL, "timer%d", minor);
 
 	pr_debug(DRV_NAME ": module loaded\n");
+
 	return 0;
 }
 module_init(timer_initialize);

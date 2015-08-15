@@ -4,6 +4,12 @@ choice
 	help
 	  Select your board!
 
+config BFIN537_OBSIDIAN
+	bool "BF537-OBSIDIAN"
+        depends on (BF537)
+	 help
+	   Lumenosys Robotics BF537-obsidian board support.
+
 config BFIN537_STAMP
 	bool "BF537-STAMP"
 	help

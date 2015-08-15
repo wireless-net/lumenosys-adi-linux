@@ -320,6 +320,14 @@ static void bfin_can_rx(struct net_device *dev, u16 isrc)
 		cf->data[7 - i] = (7 - i) < cf->can_dlc ? val : 0;
 		cf->data[6 - i] = (6 - i) < cf->can_dlc ? (val >> 8) : 0;
 	}
+	
+	/* lumenosys: workaround for RMP (receive message pending)
+	 * register bit not clearing after reading mailbox data */
+	val = bfin_read(&reg->rmp1);
+	bfin_write(&reg->rmp1, val);
+	val = bfin_read(&reg->rmp2);
+	bfin_write(&reg->rmp2, val);
+	SSYNC();
 
 	netif_rx(skb);
 
